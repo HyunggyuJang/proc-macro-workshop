@@ -17,9 +17,9 @@ pub fn derive(input: TokenStream) -> TokenStream {
         let field_ty = &field.ty;
         let field_init =
             if extract_matched_ty(field_ty, "Vec").is_some() {
-                quote! { Some(vec![]) }
+                quote! { std::option::Option::Some(vec![]) }
             } else {
-                quote! { None }
+                quote! { std::option::Option::None }
             };
         quote! {
             #field_ident: #field_init,
@@ -28,7 +28,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
     let builder_fields = fields_with_optional.clone().map(|(field, optional)| {
         let field_ident = &field.ident;
         let field_ty_raw = &field.ty;
-        let field_ty = if optional.is_none() {quote! {Option<#field_ty_raw>}} else {quote! {#field_ty_raw}};
+        let field_ty = if optional.is_none() {quote! {std::option::Option<#field_ty_raw>}} else {quote! {#field_ty_raw}};
         quote! {
             #field_ident: #field_ty,
         }
@@ -40,13 +40,13 @@ pub fn derive(input: TokenStream) -> TokenStream {
         } else { &field.ty };
         let default_impl = quote! {
             fn #field_ident(&mut self, #field_ident: #field_ty) -> &mut Self {
-                self.#field_ident = Some(#field_ident);
+                self.#field_ident = std::option::Option::Some(#field_ident);
                 self
             }
         };
         if let Some(attr) = field.attrs.iter().find(|a| a.path.is_ident("builder")) {
             if let Ok(syn::Meta::List(list)) = attr.parse_meta() {
-                if let std::option::Option::Some(syn::NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue {
+                if let Some(syn::NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue {
                     path,
                     lit: syn::Lit::Str(lit_str),
                     ..
@@ -69,8 +69,9 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         return each_fn
                     }
                 }
+                return syn::Error::new_spanned(list, "expected `builder(each = \"...\")`").to_compile_error()
             }
-            panic!("expected builder(each = ...)");
+            unreachable!("cannot come here")
         }
         return default_impl
     });
@@ -96,7 +97,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
         }
         impl #builder {
             #(#builder_methods)*
-            pub fn build (&mut self) -> Result<#ident, Box<dyn std::error::Error>> {
+            pub fn build (&mut self) -> std::result::Result<#ident, std::boxed::Box<dyn std::error::Error>> {
                 Ok(#ident {
                     #(#build_fields)*
                 })
@@ -106,11 +107,11 @@ pub fn derive(input: TokenStream) -> TokenStream {
 }
 
 
-fn extract_optioned_ty(ty: &syn::Type) -> Option<&syn::Type> {
+fn extract_optioned_ty(ty: &syn::Type) -> std::option::Option<&syn::Type> {
     extract_matched_ty(ty, "Option")
 }
 
-fn extract_matched_ty<'a>(ty: &'a syn::Type, head_ty: &str) -> Option<&'a syn::Type> {
+fn extract_matched_ty<'a>(ty: &'a syn::Type, head_ty: &str) -> std::option::Option<&'a syn::Type> {
     if let syn::Type::Path(syn::TypePath { path: syn::Path { segments, .. }, .. }, ..) = ty {
         if let Some(syn::PathSegment { ident, arguments: syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments { args, .. })}) = segments.last() {
             if args.len() == 1 && ident == head_ty {
