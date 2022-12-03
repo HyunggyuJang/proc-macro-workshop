@@ -65,3 +65,17 @@ pub fn derive(input: TokenStream) -> TokenStream {
         }
     }.into()
 }
+
+
+fn extract_optioned_ty(ty: &syn::Type) -> Option<&syn::Type> {
+    if let syn::Type::Path(syn::TypePath { path: syn::Path { segments, .. }, .. }, ..) = ty {
+        if let Some(syn::PathSegment { ident, arguments: syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments { args, .. })}) = segments.last() {
+            if args.len() == 1 && ident == "Option" {
+                if let Some(syn::GenericArgument::Type(ty)) = args.last() {
+                    return Some(ty)
+                }
+            }
+        }
+    };
+    None
+}
