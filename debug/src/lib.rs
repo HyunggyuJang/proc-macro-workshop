@@ -39,6 +39,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
     for type_param in generics.type_params_mut() {
         type_param.bounds.push(parse_quote!(std::fmt::Debug));
     }
+    let where_clause_inspect: syn::WhereClause = syn::parse("where T: Debug".parse().unwrap()).unwrap();
+    println!("where clause: {:#?}", where_clause_inspect);
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
     quote!{
         impl #impl_generics std::fmt::Debug for #struct_ident #type_generics #where_clause {
